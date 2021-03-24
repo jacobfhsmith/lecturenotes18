@@ -1,0 +1,285 @@
+---
+title: "Linear Regression II"
+author: ""
+date: "March 24, 2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Coming up
+- Homework 4 due Thursday at 11:59 PM
+- Lab on Thursday.
+- Exam 2 next week.
+
+## Main ideas
+
+- Review and expand upon concepts from our first regression class.
+- Discuss inference for linear regression.
+
+## Packages
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(fivethirtyeight)
+library(broom)
+library(viridis)
+```
+
+## Please recall
+
+- Response Variable: Variable whose behavior or variation you are trying to understand, on the y-axis. Also called the dependent variable.
+
+- Explanatory Variable: Other variables that you want to use to explain the variation in the response, on the x-axis. Also called independent variables, predictors, or features.
+
+- Predicted value: Output of the model function
+  - The model function gives the typical value of the response variable   conditioning on the explanatory variables (what does this mean?)
+
+- Residuals: Shows how far each case is from its predicted value
+  - Residual = Observed value - Predicted value
+  - Tells how far above/below the model function each case is
+  
+## The linear model with a single predictor
+
+- We're interested in the $\beta_0$ (population parameter for the intercept)
+and the $\beta_1$ (population parameter for the slope) in the 
+following model:
+
+$$ \hat{y} = \beta_0 + \beta_1~x + \epsilon $$
+
+- Unfortunately, we can't get these values
+
+- So we use sample statistics to estimate them:
+
+$$ \hat{y} = b_0 + b_1~x $$
+
+
+## Least squares regression
+
+The regression line minimizes the sum of squared residuals.
+
+- **Residuals**: $e_i = y_i - \hat{y}_i$,
+
+- The regression line minimizes $\sum_{i = 1}^n e_i^2$.
+
+- Equivalently, minimizing $\sum_{i = 1}^n [y_i - (b_0 + b_1~x_i)]^2$
+
+## Returning to our candy model
+
+Let's modify the sugar variable again for easier interpretation.
+```{r mutatesugar}
+candy_rankings<- candy_rankings %>%
+  mutate(sugarpercent100=sugarpercent*100)
+```
+
+Let's run the model again. What units are the explanatory and response variable in? 
+
+```{r sugarmodel}
+sugarwins <- lm(winpercent ~ sugarpercent100, data = candy_rankings)
+tidy(sugarwins)
+```
+
+**Interpretation**:
+
+Why does having the sugar variable on a scale from 0 to 100 lead to a better interpretation than if we had the scale go from 0 to 1?
+
+Another way to interpret linear regression coefficients is by looking at a *one standard deviation* increase rather than a one unit increase. 
+
+**Question:** Why might you want to look at this instead of a one unit increase?
+
+You can find a one standard deviation increase by multiplying the coefficient for that term by the standard deviation.
+
+Recall this model:
+
+$$\widehat{WinPercent} = 44.6 + 0.12~SugarPercentile$$
+What is the standard deviation of the sugar percentile variable?
+
+```{r sdsugar}
+candy_rankings %>%
+  summarize(sd(sugarpercent100))
+```
+
+Now, let's multiply it by the coefficient here.
+
+```{r sdincrease}
+```
+
+**Interpretation**:
+
+**Question**: Would you always want to use this sort of interpretation? Does it make sense to do a one standard deviation increase interpretation when working with a dummy variable?
+
+## Unit increases
+
+Variables will not always be measured in percentages. Other potential units include:
+
+- Dollars spent eating out.
+
+- Points scored by a basketball team.
+
+- Votes received by a bills in Congress.
+
+These are not the only potential units. It is important to know what units your variables are measured in when interpreting them. 
+
+## Assessing the quality of the fit
+
+- The strength of the fit of a linear model is commonly evaluated using $R^2$.
+
+- It tells us what percentage of the variability in the response variable is explained by the model. The remainder of the variability is unexplained.
+
+- $R^2$ is sometimes called the coefficient of determination.
+
+-**Question**: What does "explained variability in the response variable" mean?
+
+## Obtaining $R^2$ in R
+
+- percent of time the candy wins vs. sugar percentile
+
+```{r rsq}
+glance(sugarwins)
+glance(sugarwins)$r.squared 
+```
+
+You can also just pull the $R^2$ value.
+
+```{r pullr2}
+glance(sugarwins) %>% 
+  pull(r.squared) 
+```
+
+Roughly 5% of the variability in the percent of time a candy bar wins can be explained by the sugar percentile.
+
+Is this a high or low $R^2$ value?
+
+**Question**: What is the correlation between the sugar percentile and winning percentage variables? How does this number relate to the $R^2$ value here?
+
+```{r correlation}
+candy_rankings %>%
+  summarize(cor(sugarpercent100, winpercent))
+```
+
+## $R^2$ - first principles
+
+- We can write explained variation using the following ratio of sums of squares:
+
+$$ R^2 =  1 - \left( \frac{ SS\_{Error} }{ SS\_{Total} } \right) $$
+
+where $SS_{Error}$ is the sum of squared residuals and $SS_{Total}$ is the total variance in the response variable.
+
+Next class, when we talk about multiple regression, we will discuss another measure of model fit called Adjusted $R^2$ that is preferable for models with many explanatory variables.
+
+## CLT Based Inference for Linear Regression
+
+- Population model:
+
+$$ \hat{y} = \beta_0 + \beta_1~x_1 + \epsilon $$
+
+- Sample model that we use to estimate the population model:
+  
+$$ \hat{y} = b_0 + b_1~x_1  $$
+
+Similar to other sample statistics (mean, proportion, etc) there is variability in our estimates of the slope and intercept. 
+
+- Do we have convincing evidence that the true linear model has a non-zero slope?
+
+- What is a confidence interval for the population regression coefficient?
+
+Let's return to our sugar content model:
+```{r visualizingmodel}
+ggplot(data = candy_rankings, aes(x = sugarpercent100, y = winpercent)) + 
+  labs(title = "Do Sugary Candies Win More Often?", x = "Sugar Percentile", y =
+         "Win Percentage") + 
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+## Tidy Confidence Interval
+
+$$point~estimate \pm critical~value \times SE$$
+
+$$b_1 \pm t^*_{n-2} \times SE_{b_1}$$
+
+```{r}
+tidy(sugarwins)
+```
+
+## Tidy Confidence Interval
+
+A 95% confidence interval for $\beta_1$ is given by
+
+```{r confint}
+tidy(sugarwins, conf.int = TRUE, conf.level = 0.95) %>%
+  filter(term == "sugarpercent100") %>% 
+   select(starts_with("conf"))
+```
+
+## non-Tidy Confidence Interval
+
+Using the model output directly and function `qt()` we can also obtain
+the 95% confidence interval.
+
+```{r nontidy}
+tidy(sugarwins, conf.int = TRUE, conf.level = 0.95)
+0.119 + c(-1, 1) * qt(0.975, 83) * 0.0556
+```
+
+**But the `tidy()` / `confint_tidy()` methods from `broom` are preferred when 
+constructing confidence intervals.**
+
+## Interpretation
+
+We are 95% confident that for every additional percentile of sugar, the win percentage is expected to increase, on average, between 0.008 and 0.23 percentage points.
+
+## Hypothesis testing for $\beta_1$
+
+Is there convincing evidence, based on our sample data, that sugar content is associated with winning percentage?
+
+We can set this up as a hypothesis test, with the hypotheses below.
+
+$H_0: \beta_1 = 0$. There is no relationship, the slope is 0.
+
+$H_A: \beta_1 \ne 0$. There is a relationship between sugar content and winning percentage.
+
+We only reject $H_0$ in favor of $H_A$ if the data provide strong evidence
+that the true slope parameter is different from zero. 
+
+## Hypothesis testing for $\beta_1$
+
+$$T = \frac{b_k - 0}{SE_{b_k}} \sim t_{n-2}$$
+
+The p-values in the `tidy()` output represent the two-sided p-value 
+associated with the observed statistic 
+
+$$H_0: \beta_k = 0 \ \ \ \ \ \ \ H_A: \beta_k \neq 0$$
+ 
+```{r pval}
+tidy(sugarwins)
+```
+
+Based on the result above we reject $H_0$ in favor of $H_A$. We have enough 
+evidence to suggest that there is an association between sugar content and win percentage.
+
+## Practice
+
+For the practice problems, we will use the `endorsements` dataset that FiveThirtyEight compiled. The variables in this dataset are described in more detail [here](https://github.com/fivethirtyeight/data/tree/master/endorsements). This dataset includes data on the endorsements that presidential candidates received in the primaries since 1980.
+
+1. Please run a model and interpret a model with the number of endorsements  as the explanatory variable and the percentage of votes received as the response variable. Use both the one-unit increase interpretation and one standard deviation increase interpretation.
+
+```{r endorsementsmodel}
+
+```
+
+2. Please find and interpret the $R^2$ for this model.
+
+```{r rsqendorsements}
+
+```
+
+3. Find and interpret the 95% confidence interval for $\beta_1$.
+
+```{r}
+
+```
+
+# For Next Class
+
+- Please read section 9.1 of OIS.
